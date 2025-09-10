@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>随机点名系统</title>
+    <script src="tailwindcss.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        dark: '#1F2937',
+                        light: '#F3F4F6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .animate-bounce-slow {
+                animation: bounce 2s infinite;
+            }
+            .animate-spin-slow {
+                animation: spin 3s linear infinite;
+            }
+            .animate-pulse-slow {
+                animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-light to-blue-50 min-h-screen font-sans text-dark">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- 头部 -->
+        <header class="text-center mb-12">
+            <h1 class="text-[clamp(2rem,5vw,3.5rem)] font-bold text-primary mb-4 text-shadow transition-all duration-300 hover:text-blue-700">
+                <i class="fa fa-random mr-3 text-accent"></i>随机点名系统
+            </h1>
+            <p class="text-gray-600 text-lg max-w-2xl mx-auto">
+                导入包含名字的TXT文件（每行一个名字），点击开始按钮进行随机点名
+            </p>
+        </header>
+
+        <!-- 主要内容区 -->
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左侧：文件导入区 -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- 文件导入卡片 -->
+                <div class="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fa fa-file-text-o text-primary mr-2"></i>导入名单
+                    </h2>
+                    
+                    <!-- 文件拖放区域 -->
+                    <div id="dropArea" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-all duration-300 hover:border-primary cursor-pointer bg-gray-50">
+                        <i class="fa fa-cloud-upload text-4xl text-gray-400 mb-3 transition-all duration-300"></i>
+                        <p class="text-gray-600 mb-2">拖放TXT文件到此处</p>
+                        <p class="text-sm text-gray-500">或</p>
+                        <button id="browseBtn" class="mt-4 bg-primary hover:bg-blue-600 text-white py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105">
+                            <i class="fa fa-folder-open mr-1"></i> 选择文件
+                        </button>
+                        <input type="file" id="fileInput" accept=".txt" class="hidden">
+                    </div>
+                    
+                    <!-- 名单信息 -->
+                    <div id="listInfo" class="mt-6 hidden">
+                        <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div class="flex items-center">
+                                <i class="fa fa-check-circle text-secondary mr-2"></i>
+                                <span id="fileName" class="font-medium"></span>
+                            </div>
+                            <span id="nameCount" class="bg-secondary text-white text-sm py-1 px-2 rounded-full"></span>
+                        </div>
+                        <button id="clearListBtn" class="mt-3 text-sm text-red-500 hover:text-red-700 transition-colors duration-200 flex items-center">
+                            <i class="fa fa-trash-o mr-1"></i> 清除名单
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 历史记录 -->
+                <div class="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center">
+                        <i class="fa fa-history text-primary mr-2"></i>点名历史
+                    </h2>
+                    <div id="historyList" class="max-h-64 overflow-y-auto space-y-2 text-sm">
+                        <p class="text-gray-500 italic text-center py-4">暂无记录</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：点名区域 -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-xl shadow-lg p-6 h-full flex flex-col transition-all duration-300 hover:shadow-xl">
+                    <h2 class="text-xl font-semibold mb-6 flex items-center">
+                        <i class="fa fa-bullhorn text-accent mr-2"></i>当前点名
+                    </h2>
+                    
+                    <!-- 名字显示区域 -->
+                    <div id="nameDisplay" class="flex-grow flex flex-col items-center justify-center border-2 border-gray-200 rounded-xl p-6 mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-[200px]">
+                        <p id="displayText" class="text-[clamp(1.5rem,5vw,3rem)] font-bold text-center text-gray-600 transition-all duration-300">
+                            请先导入名单
+                        </p>
+                    </div>
+                    
+                    <!-- 控制按钮 -->
+                    <div class="flex justify-center space-x-4">
+                        <button id="startBtn" class="bg-accent hover:bg-amber-600 text-white py-3 px-8 rounded-lg text-lg font-medium transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center">
+                            <i class="fa fa-play mr-2"></i> 开始点名
+                        </button>
+                        <button id="stopBtn" class="bg-red-500 hover:bg-red-600 text-white py-3 px-8 rounded-lg text-lg font-medium transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 hidden flex items-center">
+                            <i class="fa fa-stop mr-2"></i> 停止
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- 页脚 -->
+        <footer class="mt-12 text-center text-gray-500 text-sm">
+            <p>随机点名系统 &copy; 2023级人工智能技术教学班</p>
+        </footer>
+        
+        <!-- 提示消息 -->
+        <div id="toast" class="fixed bottom-6 right-6 bg-dark text-white px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center">
+            <i id="toastIcon" class="mr-2"></i>
+            <span id="toastMessage"></span>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let nameList = [];
+        let isRolling = false;
+        let rollInterval;
+        let history = [];
+        
+        // DOM 元素
+        const dropArea = document.getElementById('dropArea');
+        const browseBtn = document.getElementById('browseBtn');
+        const fileInput = document.getElementById('fileInput');
+        const listInfo = document.getElementById('listInfo');
+        const fileName = document.getElementById('fileName');
+        const nameCount = document.getElementById('nameCount');
+        const clearListBtn = document.getElementById('clearListBtn');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const displayText = document.getElementById('displayText');
+        const historyList = document.getElementById('historyList');
+        const toast = document.getElementById('toast');
+        const toastIcon = document.getElementById('toastIcon');
+        const toastMessage = document.getElementById('toastMessage');
+        
+        // 初始化
+        function init() {
+            setupEventListeners();
+            updateButtonStates();
+        }
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 文件浏览按钮
+            browseBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // 文件选择
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // 拖放事件
+            dropArea.addEventListener('dragover', handleDragOver);
+            dropArea.addEventListener('dragleave', handleDragLeave);
+            dropArea.addEventListener('drop', handleDrop);
+            
+            // 清除名单
+            clearListBtn.addEventListener('click', clearNameList);
+            
+            // 开始点名
+            startBtn.addEventListener('click', startRolling);
+            
+            // 停止点名
+            stopBtn.addEventListener('click', stopRolling);
+        }
+        
+        // 处理文件选择
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+        
+        // 处理拖放相关事件
+        function handleDragOver(e) {
+            e.preventDefault();
+            dropArea.classList.add('border-primary', 'bg-blue-50');
+        }
+        
+        function handleDragLeave() {
+            dropArea.classList.remove('border-primary', 'bg-blue-50');
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            dropArea.classList.remove('border-primary', 'bg-blue-50');
+            
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+        
+        // 处理文件内容
+        function processFile(file) {
+            if (file.type !== 'text/plain' && !file.name.endsWith('.txt')) {
+                showToast('请选择TXT文件', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                // 按行分割，过滤空行和纯空格行
+                const content = e.target.result;
+                nameList = content.split('\n')
+                    .map(name => name.trim())
+                    .filter(name => name.length > 0);
+                
+                if (nameList.length === 0) {
+                    showToast('文件内容为空或格式不正确', 'error');
+                    return;
+                }
+                
+                // 更新界面
+                fileName.textContent = file.name;
+                nameCount.textContent = `${nameList.length} 个名字`;
+                listInfo.classList.remove('hidden');
+                displayText.textContent = '点击开始按钮进行点名';
+                updateButtonStates();
+                showToast(`成功导入 ${nameList.length} 个名字`, 'success');
+            };
+            
+            reader.onerror = () => {
+                showToast('文件读取失败', 'error');
+            };
+            
+            reader.readAsText(file);
+        }
+        
+        // 清除名单
+        function clearNameList() {
+            nameList = [];
+            listInfo.classList.add('hidden');
+            fileInput.value = '';
+            displayText.textContent = '请先导入名单';
+            updateButtonStates();
+            showToast('已清除名单', 'info');
+        }
+        
+        // 开始滚动名字
+        function startRolling() {
+            if (nameList.length === 0 || isRolling) return;
+            
+            isRolling = true;
+            updateButtonStates();
+            
+            // 添加动画效果
+            displayText.classList.add('animate-pulse-slow');
+            
+            // 快速切换名字
+            let speed = 100; // 初始速度
+            let counter = 0;
+            
+            rollInterval = setInterval(() => {
+                // 逐渐减慢速度
+                counter++;
+                if (counter % 10 === 0 && speed < 300) {
+                    speed += 10;
+                    clearInterval(rollInterval);
+                    rollInterval = setInterval(() => {
+                        const randomIndex = Math.floor(Math.random() * nameList.length);
+                        displayText.textContent = nameList[randomIndex];
+                    }, speed);
+                }
+                
+                const randomIndex = Math.floor(Math.random() * nameList.length);
+                displayText.textContent = nameList[randomIndex];
+            }, speed);
+        }
+        
+        // 停止滚动并显示结果
+        function stopRolling() {
+            if (!isRolling) return;
+            
+            clearInterval(rollInterval);
+            isRolling = false;
+            
+            // 移除动画效果
+            displayText.classList.remove('animate-pulse-slow');
+            // 添加选中效果
+            displayText.classList.add('scale-110', 'text-primary');
+            setTimeout(() => {
+                displayText.classList.remove('scale-110', 'text-primary');
+            }, 500);
+            
+            updateButtonStates();
+            
+            // 记录历史
+            const selectedName = displayText.textContent;
+            addToHistory(selectedName);
+            
+            showToast(`选中: ${selectedName}`, 'success');
+        }
+        
+        // 添加到历史记录
+        function addToHistory(name) {
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            history.unshift({ name, time: timeString });
+            
+            // 限制历史记录数量
+            if (history.length > 20) {
+                history.pop();
+            }
+            
+            updateHistoryDisplay();
+        }
+        
+        // 更新历史记录显示
+        function updateHistoryDisplay() {
+            if (history.length === 0) {
+                historyList.innerHTML = '<p class="text-gray-500 italic text-center py-4">暂无记录</p>';
+                return;
+            }
+            
+            historyList.innerHTML = '';
+            history.forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = `flex justify-between items-center p-2 rounded ${index === 0 ? 'bg-blue-50 border-l-4 border-primary' : 'hover:bg-gray-50'}`;
+                historyItem.innerHTML = `
+                    <span>${item.name}</span>
+                    <span class="text-xs text-gray-500">${item.time}</span>
+                `;
+                historyList.appendChild(historyItem);
+            });
+        }
+        
+        // 更新按钮状态
+        function updateButtonStates() {
+            const hasNames = nameList.length > 0;
+            
+            startBtn.disabled = !hasNames || isRolling;
+            stopBtn.disabled = !isRolling;
+            
+            if (isRolling) {
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+            } else {
+                startBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+            }
+        }
+        
+        // 显示提示消息
+        function showToast(message, type = 'info') {
+            toastMessage.textContent = message;
+            
+            // 设置图标和样式
+            if (type === 'success') {
+                toastIcon.className = 'fa fa-check-circle text-green-400';
+                toast.classList.add('bg-green-800');
+                toast.classList.remove('bg-red-800', 'bg-blue-800');
+            } else if (type === 'error') {
+                toastIcon.className = 'fa fa-exclamation-circle text-red-400';
+                toast.classList.add('bg-red-800');
+                toast.classList.remove('bg-green-800', 'bg-blue-800');
+            } else {
+                toastIcon.className = 'fa fa-info-circle text-blue-400';
+                toast.classList.add('bg-blue-800');
+                toast.classList.remove('bg-green-800', 'bg-red-800');
+            }
+            
+            // 显示提示
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+        
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
